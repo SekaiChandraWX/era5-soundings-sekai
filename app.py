@@ -564,29 +564,37 @@ if not DEPENDENCIES_AVAILABLE:
 st.markdown("""
 Generate professional **Skew-T log-P diagrams** with **hodographs** and **severe weather parameters** 
 using **ERA5 reanalysis data**. Includes hemisphere-specific storm motion calculations and 
-comprehensive hazard assessment.
+comprehensive hazard assessment. No registration required - just select your location and date!
 """)
 
-# CDS API Key setup
-st.sidebar.header("🔑 Copernicus CDS Setup")
-st.sidebar.markdown("""
-**Required:** You need a free [Copernicus Climate Data Store](https://cds.climate.copernicus.eu) account.
+# Set up CDS credentials using your API key
+def setup_cds_credentials():
+    """Set up CDS API credentials using developer's API key"""
+    try:
+        # Try to get from Streamlit secrets first (most secure)
+        if hasattr(st, 'secrets') and 'cdsapi' in st.secrets:
+            cds_key = st.secrets['cdsapi']['key']
+            st.success("🔑 CDS API configured via secure secrets")
+        else:
+            # Fallback to your hardcoded key (replace with your actual key)
+            cds_key = "YOUR_CDS_API_KEY_HERE"  # Replace this with your actual key
+            if cds_key == "YOUR_CDS_API_KEY_HERE":
+                st.error("❌ CDS API key not configured. Please set up secrets.toml or update the code.")
+                return False
+            st.info("🔑 CDS API configured via code")
+        
+        os.environ['CDSAPI_URL'] = 'https://cds.climate.copernicus.eu/api/v2'
+        os.environ['CDSAPI_KEY'] = cds_key
+        return True
+    except Exception as e:
+        st.error(f"❌ CDS API setup failed: {e}")
+        st.info("Please check your .streamlit/secrets.toml file or contact the developer.")
+        return False
 
-1. Register at CDS
-2. Get your API key from your profile
-3. Enter it below
-""")
-
-cds_key = st.sidebar.text_input("CDS API Key", type="password", 
-                               help="Get this from your CDS account profile")
-
-if not cds_key:
-    st.warning("⚠️ Please enter your CDS API key in the sidebar to use this tool.")
+# Initialize CDS credentials
+cds_setup_success = setup_cds_credentials()
+if not cds_setup_success:
     st.stop()
-
-# Set up CDS credentials
-os.environ['CDSAPI_URL'] = 'https://cds.climate.copernicus.eu/api/v2'
-os.environ['CDSAPI_KEY'] = cds_key
 
 col1, col2 = st.columns([2, 3])
 
@@ -722,7 +730,7 @@ with st.expander("📚 Parameter Definitions"):
     - Values >3 indicate significant tornado potential
     """)
 
-with st.expander("⚠️ Data Limitations"):
+with st.expander("⚠️ Data Availability"):
     st.markdown("""
     **Temporal Coverage:**
     - **Historical**: January 1940 - Present
@@ -733,11 +741,12 @@ with st.expander("⚠️ Data Limitations"):
     - **Horizontal**: ~31 km (0.28° x 0.28°)
     - **Vertical**: 37 pressure levels (1000-1 hPa)
     
-    **Important Notes:**
+    **Processing Notes:**
+    - ERA5 data is automatically downloaded from Copernicus CDS
+    - Processing time: 2-5 minutes depending on data availability
     - ERA5 is a **reanalysis product**, not real-time observations
     - Small-scale features may be smoothed compared to radiosonde data
     - Best used for **climatological analysis** and **case studies**
-    - For **operational forecasting**, use real-time NWP model data
     """)
 
 st.markdown("---")
