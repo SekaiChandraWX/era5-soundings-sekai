@@ -174,11 +174,39 @@ def process_era5_dataset(file_path, lat, lon, progress_bar):
         raise Exception(f"Data processing failed: {str(e)}")
 
 def create_comprehensive_sounding_plot(data, lat, progress_bar):
-    """Create comprehensive sounding analysis plot"""
-    progress_bar.progress(85, "Calculating atmospheric parameters...")
+    """Create simple sounding plot and save as JPG"""
+    progress_bar.progress(85, "Creating sounding plot...")
     
     try:
-        # Convert data to MetPy units
+        # Create temporary file path for the plot
+        plot_filename = f"era5_sounding_{int(time.time())}.jpg"
+        temp_plot_path = os.path.join(tempfile.gettempdir(), plot_filename)
+        
+        # Use your original plotting approach
+        create_simple_sounding_plot(data, temp_plot_path, lat)
+        
+        # Read the image file and return as matplotlib figure for Streamlit
+        from PIL import Image
+        img = Image.open(temp_plot_path)
+        
+        # Convert PIL image to matplotlib figure
+        fig, ax = plt.subplots(figsize=(12, 9))
+        ax.imshow(img)
+        ax.axis('off')
+        
+        # Clean up temp file
+        if os.path.exists(temp_plot_path):
+            os.remove(temp_plot_path)
+            
+        return fig
+        
+    except Exception as e:
+        raise Exception(f"Plot creation failed: {str(e)}")
+
+def create_simple_sounding_plot(data, file_path, lat):
+    """Create sounding plot using original working logic"""
+    try:
+        # Convert ERA5 data to arrays (like original)
         pressure = np.array(data['levels'])
         height = np.array(data['z'])
         temperature = np.array(data['temp'])
@@ -190,7 +218,7 @@ def create_comprehensive_sounding_plot(data, lat, progress_bar):
         sort_idx = np.argsort(pressure)[::-1]
         pressure = pressure[sort_idx]
         height = height[sort_idx]
-        temperature = temperature[sort_idx]
+        temperature = temperature[sort_idx] 
         dewpoint = dewpoint[sort_idx]
         u_wind = u_wind[sort_idx]
         v_wind = v_wind[sort_idx]
@@ -208,123 +236,39 @@ def create_comprehensive_sounding_plot(data, lat, progress_bar):
         p = pressure[valid_mask] * units.hPa
         T = temperature[valid_mask] * units.degC
         Td = dewpoint[valid_mask] * units.degC
-        height_m = height[valid_mask] * units.meter
         u = u_wind[valid_mask] * units.knot
         v = v_wind[valid_mask] * units.knot
         
-        # Calculate wind from direction/speed for consistency
-        wdir = data['wdir'][sort_idx][valid_mask]
-        wspd = data['wspd'][sort_idx][valid_mask]
-        wdir_rad = np.deg2rad(wdir)
-        u_calc = -wspd * np.sin(wdir_rad) * units.knot
-        v_calc = -wspd * np.cos(wdir_rad) * units.knot
-        
-        # Determine hemisphere
-        is_southern_hemisphere = lat < 0
-        hemisphere_text = "SHEM" if is_southern_hemisphere else "NHEM"
-        
-        progress_bar.progress(90, "Computing severe weather parameters...")
-        
-        # Calculate thermodynamic parameters
+        # Calculate basic parameters
         try:
             # Surface-based parcel
             sb_parcel_prof = mpcalc.parcel_profile(p, T[0], Td[0])
             sb_cape, sb_cin = mpcalc.cape_cin(p, T, Td, sb_parcel_prof)
             
-            # Mixed layer parcel  
-            ml_t, ml_td = mpcalc.mixed_layer(p, T, Td, depth=50 * units.hPa)
-            ml_parcel_prof = mpcalc.parcel_profile(p, ml_t, ml_td)
-            ml_cape, ml_cin = mpcalc.mixed_layer_cape_cin(p, T, ml_parcel_prof, depth=50 * units.hPa)
-            
-            # Most unstable parcel
-            mu_cape, mu_cin = mpcalc.most_unstable_cape_cin(p, T, Td, depth=50 * units.hPa)
-            
             # LCL
             lcl_p, lcl_t = mpcalc.lcl(p[0], T[0], Td[0])
-            
-            # LCL height
-            new_p = np.append(p[p > lcl_p], lcl_p)
-            new_t = np.append(T[p > lcl_p], lcl_t)
-            lcl_height = mpcalc.thickness_hydrostatic(new_p, new_t)
-            
-        except Exception as e:
-            # Fallback values
-            sb_cape = ml_cape = mu_cape = 0 * units('J/kg')
-            sb_cin = ml_cin = mu_cin = 0 * units('J/kg')
+        except:
+            sb_cape = sb_cin = 0 * units('J/kg')
             lcl_p, lcl_t = p[0], T[0]
-            lcl_height = 1000 * units.meter
         
-        # Calculate kinematic parameters
-        try:
-            # Storm motion - both RM and LM
-            storm_motion = mpcalc.bunkers_storm_motion(p, u_calc, v_calc, height_m)
-            storm_u_rm, storm_v_rm = storm_motion[0]
-            storm_u_lm, storm_v_lm = storm_motion[1]
-            
-            # Hemisphere-specific storm motion selection
-            if is_southern_hemisphere:
-                primary_storm_u, primary_storm_v = storm_u_lm, storm_v_lm
-                storm_type_label = "LM"
-                line_color = 'red'
-            else:
-                primary_storm_u, primary_storm_v = storm_u_rm, storm_v_rm
-                storm_type_label = "RM"
-                line_color = 'green'
-            
-            # Wind shear calculations
-            shear_1km = mpcalc.wind_speed(*mpcalc.bulk_shear(p, u_calc, v_calc, height=height_m, depth=1 * units.km))
-            shear_3km = mpcalc.wind_speed(*mpcalc.bulk_shear(p, u_calc, v_calc, height=height_m, depth=3 * units.km))
-            shear_6km = mpcalc.wind_speed(*mpcalc.bulk_shear(p, u_calc, v_calc, height=height_m, depth=6 * units.km))
-            shear_8km = mpcalc.wind_speed(*mpcalc.bulk_shear(p, u_calc, v_calc, height=height_m, depth=8 * units.km))
-            
-            # SRH calculations - hemisphere-specific
-            if is_southern_hemisphere:
-                srh_1km = mpcalc.storm_relative_helicity(height_m, u_calc, v_calc, depth=1 * units.km,
-                                                        storm_u=storm_u_lm, storm_v=storm_v_lm)[2]
-                srh_3km = mpcalc.storm_relative_helicity(height_m, u_calc, v_calc, depth=3 * units.km,
-                                                        storm_u=storm_u_lm, storm_v=storm_v_lm)[2]
-            else:
-                srh_1km = mpcalc.storm_relative_helicity(height_m, u_calc, v_calc, depth=1 * units.km,
-                                                        storm_u=storm_u_rm, storm_v=storm_v_rm)[2]
-                srh_3km = mpcalc.storm_relative_helicity(height_m, u_calc, v_calc, depth=3 * units.km,
-                                                        storm_u=storm_u_rm, storm_v=storm_v_rm)[2]
-                
-        except Exception as e:
-            # Fallback values
-            storm_u_rm = storm_v_rm = storm_u_lm = storm_v_lm = 0 * units.knot
-            primary_storm_u = primary_storm_v = 0 * units.knot
-            shear_1km = shear_3km = shear_6km = shear_8km = 0 * units('m/s')
-            srh_1km = srh_3km = 0 * units('m^2/s^2')
-            storm_type_label = "RM"
-            line_color = 'green'
+        # Determine hemisphere
+        is_southern_hemisphere = lat < 0
+        hemisphere_text = "SHEM" if is_southern_hemisphere else "NHEM"
         
-        # Calculate composite parameters
-        try:
-            # Supercell Tornado Parameter (Fixed)
-            stpf = (sb_cape / (1500 * units('J/kg'))) * \
-                   (abs(srh_1km) / (150 * units('m^2/s^2'))) * \
-                   (shear_6km / (20 * units('m/s'))) * \
-                   ((2000 * units.meter - lcl_height) / (1000 * units.meter))
-            stpf = stpf.to('dimensionless').magnitude
-            
-        except Exception as e:
-            stpf = 0
-        
-        progress_bar.progress(95, "Creating comprehensive plot...")
-        
-        # === PLOTTING SECTION ===
+        # === SIMPLE PLOTTING ===
         plt.style.use('dark_background')
-        fig = plt.figure(figsize=(18, 12), facecolor='#2F2F2F')
-        gs = gridspec.GridSpec(2, 2, height_ratios=[2, 1], width_ratios=[2.5, 1])
+        fig = plt.figure(figsize=(16, 10), facecolor='#2F2F2F')
         
-        # TOP LEFT: Skew-T plot
-        skew = SkewT(fig, rotation=45, subplot=gs[0, 0])
+        # Create Skew-T plot
+        skew = SkewT(fig, rotation=45)
         skew.ax.set_facecolor('#2F2F2F')
         
-        # Plot temperature and dewpoint
+        # Plot temperature and dewpoint profiles
         skew.plot(p, T, 'r', linewidth=2.5, label='Temperature')
-        skew.plot(p, Td, 'g', linewidth=2.5, label='Dewpoint') 
-        skew.plot_barbs(p[::2], u_calc[::2], v_calc[::2], barbcolor='white', flagcolor='white')
+        skew.plot(p, Td, 'g', linewidth=2.5, label='Dewpoint')
+        
+        # Plot wind barbs
+        skew.plot_barbs(p[::3], u[::3], v[::3], barbcolor='white', flagcolor='white')
         
         # Plot LCL
         skew.plot(lcl_p, lcl_t, 'wo', markerfacecolor='white', markeredgecolor='black', markersize=8)
@@ -341,10 +285,9 @@ def create_comprehensive_sounding_plot(data, lat, progress_bar):
         # Styling
         skew.ax.set_ylim(1000, 100)
         skew.ax.set_xlim(-40, 60)
-        skew.ax.set_xlabel(f'Temperature ({T.units:~P})', color='white')
-        skew.ax.set_ylabel(f'Pressure ({p.units:~P})', color='white')
+        skew.ax.set_xlabel('Temperature (°C)', color='white')
+        skew.ax.set_ylabel('Pressure (hPa)', color='white')
         skew.ax.tick_params(colors='white')
-        skew.ax.set_title('Skew-T Log-P Diagram', fontsize=14, fontweight='bold', color='white')
         skew.ax.grid(True, alpha=0.3, color='white')
         
         # Add reference lines
@@ -353,167 +296,27 @@ def create_comprehensive_sounding_plot(data, lat, progress_bar):
         skew.plot_moist_adiabats(colors='white', alpha=0.3)
         skew.plot_mixing_lines(colors='white', alpha=0.3)
         
-        # TOP RIGHT: Hodograph
-        hodo_ax = fig.add_subplot(gs[0, 1], facecolor='#2F2F2F')
-        h = Hodograph(hodo_ax, component_range=80)
-        h.add_grid(increment=20, color='white', alpha=0.3)
-        
-        # Plot hodograph by height layers
-        try:
-            height_agl = height_m - height_m[0]
-            layers = [
-                (0, 3000, 'red', '0-3km'),
-                (3000, 6000, 'green', '3-6km'), 
-                (6000, 9000, 'yellow', '6-9km'),
-                (9000, 20000, 'lightblue', '>9km')
-            ]
-            
-            for bottom, top, color, label in layers:
-                height_values = height_agl.to('meter').magnitude
-                mask = (height_values >= bottom) & (height_values < top)
-                if np.any(mask):
-                    h.plot(u_calc[mask], v_calc[mask], color=color, linewidth=3, label=label)
-            
-            # Plot storm motion vectors
-            h.ax.plot(storm_u_rm.magnitude, storm_v_rm.magnitude, 'go', markersize=8,
-                     markerfacecolor='green', markeredgecolor='white', linewidth=2, label='RM Storm Motion')
-            h.ax.plot(storm_u_lm.magnitude, storm_v_lm.magnitude, 'ro', markersize=8,
-                     markerfacecolor='red', markeredgecolor='white', linewidth=2, label='LM Storm Motion')
-            
-            # Primary storm motion line
-            h.ax.plot([0, primary_storm_u.magnitude], [0, primary_storm_v.magnitude],
-                     '--', color=line_color, alpha=0.8, linewidth=2)
-                     
-        except:
-            pass
-        
-        hodo_ax.set_title(f'Hodograph ({hemisphere_text} - {storm_type_label} Primary)',
-                         fontsize=14, fontweight='bold', color='white')
-        hodo_ax.tick_params(colors='white')
-        
-        # BOTTOM LEFT: Parameters
-        params_ax = fig.add_subplot(gs[1, 0], facecolor='#2F2F2F')
-        params_ax.axis('off')
-        
-        # Parameter layout
-        base_col1 = 0.02
-        base_col2 = 0.35
-        base_col3 = 0.68
-        
-        thermodynamic_params = [
-            f"SBCAPE: {sb_cape:~.0f}",
-            f"MLCAPE: {ml_cape:~.0f}",
-            f"MUCAPE: {mu_cape:~.0f}",
-            f"SBCIN: {sb_cin:~.0f}",
-            f"MLCIN: {ml_cin:~.0f}",
-            f"LCL Height: {lcl_height:~.0f}"
-        ]
-        
-        kinematic_params = [
-            f"0-1km Shear: {shear_1km:~.1f}",
-            f"0-3km Shear: {shear_3km:~.1f}",
-            f"0-6km Shear: {shear_6km:~.1f}",
-            f"0-8km Shear: {shear_8km:~.1f}",
-            f"0-1km SRH ({storm_type_label}): {abs(srh_1km):~.0f}",
-            f"0-3km SRH ({storm_type_label}): {abs(srh_3km):~.0f}"
-        ]
-        
-        composite_params = [
-            f"STP Fixed: {stpf:.2f}",
-            f"RM Storm U: {storm_u_rm:~.1f}",
-            f"RM Storm V: {storm_v_rm:~.1f}",
-            f"LM Storm U: {storm_u_lm:~.1f}",
-            f"LM Storm V: {storm_v_lm:~.1f}"
-        ]
-        
-        # Parameter titles
-        title_y = 0.95
-        params_ax.text(base_col1, title_y, "THERMODYNAMIC:",
-                      transform=params_ax.transAxes, fontsize=11, fontweight='bold', 
-                      fontfamily='monospace', color='white')
-        params_ax.text(base_col2, title_y, "KINEMATIC:",
-                      transform=params_ax.transAxes, fontsize=11, fontweight='bold',
-                      fontfamily='monospace', color='white')
-        params_ax.text(base_col3, title_y, "COMPOSITE:",
-                      transform=params_ax.transAxes, fontsize=11, fontweight='bold',
-                      fontfamily='monospace', color='white')
-        
-        # Parameter values
-        param_start_y = 0.85
-        for i, text in enumerate(thermodynamic_params):
-            params_ax.text(base_col1, param_start_y - i * 0.12, text, transform=params_ax.transAxes,
-                          fontsize=10, fontfamily='monospace', color='white')
-        
-        for i, text in enumerate(kinematic_params):
-            params_ax.text(base_col2, param_start_y - i * 0.12, text, transform=params_ax.transAxes,
-                          fontsize=10, fontfamily='monospace', color='white')
-        
-        for i, text in enumerate(composite_params):
-            params_ax.text(base_col3, param_start_y - i * 0.12, text, transform=params_ax.transAxes,
-                          fontsize=10, fontfamily='monospace', color='white')
-        
-        params_ax.set_title('Calculated Parameters', fontweight='bold', fontsize=14, color='white')
-        
-        # BOTTOM RIGHT: Hazard Assessment
-        hazard_ax = fig.add_subplot(gs[1, 1], facecolor='#2F2F2F')
-        hazard_ax.axis('off')
-        
-        # Hazard determination using absolute SRH values
-        try:
-            cape_val = sb_cape.to('J/kg').magnitude
-            shear_6km_val = shear_6km.to('m/s').magnitude
-            srh_3km_val = abs(srh_3km.to('m^2/s^2').magnitude)
-            
-            if (stpf >= 3 or (srh_3km_val >= 300 and shear_6km_val >= 20 and cape_val >= 1500)):
-                hazard_type = "TOR"
-                hazard_color = "red"
-            elif (stpf >= 1 or (srh_3km_val >= 150 and shear_6km_val >= 15 and cape_val >= 1000)):
-                hazard_type = "MRGL TOR"
-                hazard_color = "darkred"
-            elif (shear_6km_val >= 15 and cape_val >= 1000):
-                hazard_type = "SVR"
-                hazard_color = "orange"
-            elif (shear_6km_val >= 10 and cape_val >= 500):
-                hazard_type = "MRGL SVR"
-                hazard_color = "yellow"
-            elif cape_val < 100:
-                hazard_type = "NONE"
-                hazard_color = "green"
-            else:
-                hazard_type = "SVR"
-                hazard_color = "orange"
-                
-        except:
-            hazard_type = "UNKNOWN"
-            hazard_color = "gray"
-        
-        # Hazard display
-        hazard_ax.text(0.5, 0.80, "PREDICTED", transform=hazard_ax.transAxes,
-                      fontsize=16, fontweight='bold', ha='center', color='white')
-        hazard_ax.text(0.5, 0.65, "HAZARD TYPE", transform=hazard_ax.transAxes,
-                      fontsize=16, fontweight='bold', ha='center', color='white')
-        hazard_ax.text(0.5, 0.40, hazard_type, transform=hazard_ax.transAxes,
-                      fontsize=22, fontweight='bold', ha='center', color=hazard_color,
-                      bbox=dict(boxstyle="round,pad=0.5", facecolor='#2F2F2F',
-                               edgecolor=hazard_color, linewidth=3))
-        
-        # Main title
+        # Title
         formatted_date = data['valid_date'].strftime("%Y-%m-%d %H:%M UTC")
-        fig.suptitle(f'ERA5 Atmospheric Sounding Analysis ({hemisphere_text}) - {formatted_date}',
-                    fontsize=16, fontweight='bold', color='white')
+        skew.ax.set_title(f'ERA5 Atmospheric Sounding ({hemisphere_text}) - {formatted_date}',
+                         fontsize=14, fontweight='bold', color='white', pad=20)
+        
+        # Add basic parameters as text
+        param_text = f"SBCAPE: {sb_cape:~.0f}    SBCIN: {sb_cin:~.0f}"
+        plt.figtext(0.5, 0.08, param_text, ha='center', fontsize=12, color='white')
         
         # Attribution
         plt.figtext(0.5, 0.02, 'Plotted by Sekai Chandra (@Sekai_WX)',
                    ha='center', fontsize=8, style='italic', color='white')
         
-        # Layout adjustment
+        # Save as JPG
         plt.tight_layout()
-        plt.subplots_adjust(top=0.90, left=0.05, right=0.95, hspace=0.3, wspace=0.2)
-        
-        return fig
+        plt.savefig(file_path, format='jpg', bbox_inches='tight', 
+                   facecolor='#2F2F2F', dpi=150)
+        plt.close()
         
     except Exception as e:
-        raise Exception(f"Plot creation failed: {str(e)}")
+        raise Exception(f"Simple plot creation failed: {str(e)}")
 
 def process_era5_sounding(date_input, hour, lat, lon):
     """Main processing function for ERA5 sounding"""
