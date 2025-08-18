@@ -571,30 +571,15 @@ comprehensive hazard assessment. No registration required - just select your loc
 def setup_cds_credentials():
     """Set up CDS API credentials using developer's API key"""
     try:
-        # Debug: Check what's available
-        st.write("🔍 **Debug Info:**")
-        st.write(f"- Streamlit version: {st.__version__}")
-        st.write(f"- Has secrets attribute: {hasattr(st, 'secrets')}")
-        
-        if hasattr(st, 'secrets'):
-            st.write(f"- Available secrets: {list(st.secrets.keys())}")
-            if 'cdsapi' in st.secrets:
-                st.write("- Found 'cdsapi' in secrets ✅")
-                cds_key = st.secrets['cdsapi']['key']
-                st.success("🔑 CDS API configured via secure secrets")
-            else:
-                st.write("- 'cdsapi' not found in secrets ❌")
-                st.write("- Falling back to hardcoded key...")
-                cds_key = "9c23d12f-0007-41e8-b037-af4a7ffcf0c3"  # Your actual key here
-                st.info("🔑 CDS API configured via fallback code")
+        # Try to get from Streamlit secrets first (most secure)
+        if hasattr(st, 'secrets') and 'cdsapi' in st.secrets:
+            cds_key = st.secrets['cdsapi']['key']
         else:
-            st.write("- No secrets available, using fallback")
-            cds_key = "9c23d12f-0007-41e8-b037-af4a7ffcf0c3"  # Your actual key here
-            st.info("🔑 CDS API configured via fallback code")
-        
-        if not cds_key or cds_key == "YOUR_CDS_API_KEY_HERE":
-            st.error("❌ CDS API key not configured properly.")
-            return False
+            # Fallback to your hardcoded key (replace with your actual key)
+            cds_key = "YOUR_CDS_API_KEY_HERE"  # Replace this with your actual key
+            if cds_key == "YOUR_CDS_API_KEY_HERE":
+                st.error("❌ CDS API key not configured. Please contact the developer.")
+                return False
         
         os.environ['CDSAPI_URL'] = 'https://cds.climate.copernicus.eu/api/v2'
         os.environ['CDSAPI_KEY'] = cds_key
@@ -602,7 +587,6 @@ def setup_cds_credentials():
         
     except Exception as e:
         st.error(f"❌ CDS API setup failed: {e}")
-        st.info("Please check your configuration or contact the developer.")
         return False
 
 # Initialize CDS credentials
