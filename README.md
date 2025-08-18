@@ -1,28 +1,37 @@
-# 🛰️ GOES Satellite Data Viewer
+# 🌪️ ERA5 Atmospheric Sounding Plotter
 
-Advanced web application for viewing GOES-16, GOES-17, GOES-18, and GOES-19 satellite imagery with automatic satellite selection.
+Professional atmospheric sounding analysis using ERA5 reanalysis data with comprehensive severe weather parameter calculations. **No registration required** - CDS API access included!
 
-## Features
-- **Multi-satellite support**: GOES-16, 17, 18, and 19
-- **Automatic selection**: Best satellite chosen based on location and date
-- **High resolution**: ~2km spatial resolution infrared imagery
-- **Full coverage**: Eastern US (GOES-16/19) and Western US (GOES-17/18)
-- **Real-time data**: Access to latest satellite imagery
+## ✨ Features
+- **Skew-T log-P diagrams** with temperature, dewpoint, and wind profiles
+- **Hodographs** with color-coded height layers and storm motion vectors
+- **Comprehensive parameters**: CAPE, CIN, wind shear, SRH, STP
+- **Hemisphere-specific calculations** for accurate storm motion
+- **Automated hazard assessment** (tornado, severe thunderstorm potential)
+- **Historical coverage**: 1940 to present (5-day delay)
+- **No user registration required** - just enter location and generate!
 
-## Satellite Coverage
-- **GOES-16 & GOES-19** (75.2°W): Eastern US, Atlantic, Caribbean
-- **GOES-17 & GOES-18** (137.0°W): Western US, Pacific, Hawaii
+## 🎯 Immediate Usage
+1. Enter any global location (city name or coordinates)
+2. Select date and time (available back to 1940)
+3. Generate comprehensive atmospheric analysis
+4. Download professional-quality sounding plots
 
-## Usage
-1. Select date and time
-2. Enter location (city name or coordinates)  
-3. System automatically chooses optimal satellite
-4. Generate high-resolution infrared imagery
+## 📊 Parameters Calculated
+- **Thermodynamic**: SBCAPE, MLCAPE, MUCAPE, CIN, LCL height
+- **Kinematic**: Wind shear (0-1km, 0-3km, 0-6km), SRH, storm motion  
+- **Composite**: Supercell Tornado Parameter (STP), hazard assessment
 
-## Data Sources
-- GOES-16: April 2017 - October 2024
-- GOES-17: August 2018 - July 2022  
-- GOES-18: July 2022 - Present
-- GOES-19: October 2024 - Present
+## 🌍 Global Coverage
+- **All locations worldwide** (land and ocean)
+- **Full atmosphere**: Surface to 1 hPa (~50km altitude)
+- **High resolution**: 31km horizontal, 37 pressure levels
+- **Quality data**: ECMWF ERA5 reanalysis standard
 
-*All data from NOAA/NESDIS via AWS Open Data Program*
+## 🏆 Professional Features
+- Hemisphere-aware storm motion calculations
+- NWS-standard parameter computations
+- Publication-quality visualization
+- Dark theme professional styling
+
+*Comprehensive atmospheric analysis by Sekai Chandra (@Sekai_WX)*
