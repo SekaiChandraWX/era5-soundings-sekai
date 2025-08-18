@@ -84,7 +84,7 @@ def download_era5_data(year, month, day, hour, lat, lon, progress_bar):
             "product_type": ["reanalysis"],
             "variable": [
                 "geopotential",
-                "relative_humidity", 
+                "relative_humidity",
                 "temperature",
                 "u_component_of_wind",
                 "v_component_of_wind"
@@ -96,26 +96,26 @@ def download_era5_data(year, month, day, hour, lat, lon, progress_bar):
                 "600", "650", "700", "750", "775", "800", "825",
                 "850", "875", "900", "925", "950", "975", "1000"
             ],
-            "year": [str(year)],
-            "month": [f"{month:02d}"],
-            "day": [f"{day:02d}"],
+            "year": [year],           # Use integer directly like original
+            "month": [month],         # Use integer directly like original  
+            "day": [day],             # Use integer directly like original
             "time": [f"{hour:02d}:00"],
             "area": area,
             "format": "netcdf"
         }
         
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.nc') as tmp_file:
-            file_path = tmp_file.name
+        # Create temporary file using original naming pattern
+        file_path = f"era5_{year}{month:02d}{day:02d}_{hour:02d}.nc"
+        temp_path = os.path.join(tempfile.gettempdir(), file_path)
         
         progress_bar.progress(25, "Submitting ERA5 data request...")
         
-        # Submit request
-        c.retrieve(dataset, request, file_path)
+        # Submit request using original method
+        c.retrieve(dataset, request, temp_path)
         
         progress_bar.progress(75, "ERA5 data downloaded successfully!")
         
-        return file_path
+        return temp_path
         
     except Exception as e:
         raise Exception(f"ERA5 download failed: {str(e)}")
@@ -581,7 +581,7 @@ def setup_cds_credentials():
                 st.error("❌ CDS API key not configured. Please contact the developer.")
                 return False
         
-        os.environ['CDSAPI_URL'] = 'https://cds.climate.copernicus.eu/api/v2'
+        os.environ['CDSAPI_URL'] = 'https://cds.climate.copernicus.eu/api'  # Correct API URL
         os.environ['CDSAPI_KEY'] = cds_key
         return True
         
@@ -726,6 +726,25 @@ with st.expander("📚 Parameter Definitions"):
     - **STP**: Supercell Tornado Parameter (combines CAPE, shear, SRH, LCL)
     - Values >1 indicate increasing tornado potential
     - Values >3 indicate significant tornado potential
+    """)
+
+with st.expander("🔧 Technical Details"):
+    st.markdown("""
+    **CDS API Configuration:**
+    - Uses Copernicus Climate Data Store (CDS) API
+    - API endpoint: `https://cds.climate.copernicus.eu/api`
+    - Requires valid CDS account and API key
+    
+    **Data Processing:**
+    - Downloads ERA5 pressure level data in NetCDF format
+    - Extracts nearest grid point to requested location
+    - Calculates comprehensive atmospheric parameters
+    - Generates professional-quality visualizations
+    
+    **Performance:**
+    - Small geographic area (0.02° x 0.02°) for fast downloads
+    - All 37 pressure levels (1000-1 hPa) included
+    - Processing optimized for Streamlit cloud environment
     """)
 
 with st.expander("⚠️ Data Availability"):
