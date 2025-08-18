@@ -614,10 +614,10 @@ with col1:
     
     hour_input = st.selectbox(
         "Hour (UTC)", 
-        options=[0, 6, 12, 18], 
-        index=1,
+        options=list(range(24)), 
+        index=12,
         format_func=lambda x: f"{x:02d}:00",
-        help="ERA5 main analysis times"
+        help="ERA5 provides hourly data (00-23 UTC)"
     )
     
     st.subheader("🌍 Location")
@@ -655,7 +655,7 @@ with col1:
             st.info(f"📍 {hemisphere} Hemisphere")
     
     # Warning about processing time
-    st.info("⏱️ **Processing Time:** 2-5 minutes (includes ERA5 download)")
+    st.info("⏱️ **Processing Time:** 1-3 minutes (ERA5 hourly data download)")
     
     generate_button = st.button("🚀 Generate Sounding Analysis", type="primary")
 
@@ -733,7 +733,7 @@ with st.expander("⚠️ Data Availability"):
     **Temporal Coverage:**
     - **Historical**: January 1940 - Present
     - **Real-time delay**: ~5 days behind current date
-    - **Analysis times**: 00, 06, 12, 18 UTC
+    - **Analysis times**: Hourly (00-23 UTC)
     
     **Spatial Resolution:**
     - **Horizontal**: ~31 km (0.28° x 0.28°)
@@ -741,7 +741,7 @@ with st.expander("⚠️ Data Availability"):
     
     **Processing Notes:**
     - ERA5 data is automatically downloaded from Copernicus CDS
-    - Processing time: 2-5 minutes depending on data availability
+    - Processing time: 1-3 minutes for hourly data
     - ERA5 is a **reanalysis product**, not real-time observations
     - Small-scale features may be smoothed compared to radiosonde data
     - Best used for **climatological analysis** and **case studies**
