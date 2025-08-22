@@ -746,9 +746,7 @@ if not DEPENDENCIES_AVAILABLE:
     st.stop()
 
 st.markdown("""
-Generate professional **Skew-T log-P diagrams** with **hodographs** and **severe weather parameters** 
-using **ERA5 reanalysis data**. Includes hemisphere-specific storm motion calculations and 
-comprehensive hazard assessment. No registration required - just select your location and date!
+Generate **ERA-5 Reanalysis Sounding Plots** using this simple application. Just select your location, date, and hit the generate button!
 """)
 
 # Initialize CDS credentials
@@ -893,45 +891,6 @@ with st.expander("📚 Parameter Definitions"):
     - Values >1 indicate increasing tornado potential
     - Values >3 indicate significant tornado potential
     - Values >8 indicate violent tornado potential
-    """)
-
-with st.expander("🔧 Technical Details"):
-    st.markdown("""
-    **CDS API Configuration:**
-    - Uses Copernicus Climate Data Store (CDS) API
-    - API endpoint: `https://cds.climate.copernicus.eu/api`
-    - Requires valid CDS account and API key
-    
-    **Data Processing:**
-    - Downloads ERA5 pressure level data in NetCDF format
-    - Extracts nearest grid point to requested location
-    - Calculates comprehensive atmospheric parameters
-    - Generates professional-quality visualizations in JPG format
-    
-    **Performance:**
-    - Small geographic area (0.02° x 0.02°) for fast downloads
-    - All 37 pressure levels (1000-1 hPa) included
-    - Processing optimized for Streamlit cloud environment
-    - Comprehensive analysis with 50+ calculated parameters
-    """)
-
-with st.expander("⚠️ Data Availability"):
-    st.markdown("""
-    **Temporal Coverage:**
-    - **Historical**: January 1940 - Present
-    - **Real-time delay**: ~5 days behind current date
-    - **Analysis times**: Hourly (00-23 UTC)
-    
-    **Spatial Resolution:**
-    - **Horizontal**: ~31 km (0.28° x 0.28°)
-    - **Vertical**: 37 pressure levels (1000-1 hPa)
-    
-    **Processing Notes:**
-    - ERA5 data is automatically downloaded from Copernicus CDS
-    - Processing time: 1-3 minutes for hourly data
-    - ERA5 is a **reanalysis product**, not real-time observations
-    - Small-scale features may be smoothed compared to radiosonde data
-    - Best used for **climatological analysis** and **case studies**
     """)
 
 st.markdown("---")
